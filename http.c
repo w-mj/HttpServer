@@ -1,8 +1,8 @@
 #include "http.h"
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #define MAXLINE 1024
 
@@ -80,7 +80,7 @@ ssize_t send_directory_view(int clientfd, char* dir)
     start_http_response(clientfd, 200);
     send_http_header(clientfd, "Content-Type", "text/html");
     end_http_header(clientfd);
-    WriteStr(clientfd, "<html><body><h1>");
+    WriteStr(clientfd, "<html><meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\" /><body><h1>");
     WriteStr(clientfd, dir + 1);
     WriteStr(clientfd, "</h1><br>");
     WriteStr(clientfd, "<table><tr><td><a href='");
@@ -150,7 +150,7 @@ ssize_t serve_http_request(int clientfd, char* r)
         n = i;
         while (n >= 0 && path[n] != '.')
             n--;
-        snprintf(buf, MAXLINE, 
+        snprintf(buf, MAXLINE,
             "awk '$1==\"%s\"{print $2;a+=1;} END{if(a==0)print \" text/plain\"}' content-type",
             path + n);
         awkf = popen(buf, "r");
@@ -160,6 +160,8 @@ ssize_t serve_http_request(int clientfd, char* r)
             i++;
         buf[i] = '\0';
         send_http_header(clientfd, "Content-Type", buf);
+        snprintf(buf, MAXLINE, "%d", stbuf.st_size);
+        send_http_header(clientfd, "Content-Length", buf);
         pclose(awkf);
         end_http_header(clientfd);
         while ((n = read(fd, buf, MAXLINE)) > 0)

@@ -8,24 +8,18 @@
 
 ssize_t start_http_response(int sockfd, int code)
 {
-    char buf[MAXLINE];
-    snprintf(buf, MAXLINE, "HTTP/1.1 %d ", code);
-    switch (code) {
-    case 200:
-        strcat(buf, "OK");
-        break;
-    case 404:
-        strcat(buf, "Not Found");
-        break;
-    case 403:
-        strcat(buf, "Forbidden");
-        break;
-    case 503:
-        strcat(buf, "Service Unavaliable");
-        break;
-    }
-    strcat(buf, "\r\n");
-    return Write(sockfd, buf, strlen(buf));
+    char buf[MAXLINE], buf2[MAXLINE];
+    FILE* awkf;
+    int i;
+
+    snprintf(buf, MAXLINE,
+        "awk -F: '$1==\"%d\"{print $2}' status-code",
+        code);
+    awkf = popen(buf, "r");
+    fgets(buf, MAXLINE, awkf);
+    pclose(awkf);
+    snprintf(buf2, MAXLINE, "HTTP/1.1 %d %s", code, buf);
+    return Write(sockfd, buf2, strlen(buf2));
 }
 
 ssize_t send_http_header(int sockfd, char* key, char* value)

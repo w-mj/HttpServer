@@ -47,8 +47,9 @@ ssize_t send_error(int clientfd, int code, char* text)
 
 ssize_t send_directory_view(int clientfd, char* dir)
 {
-    char parent[MAXLINE];
+    char buf[MAXLINE];
     struct dirent* dp;
+    struct stat stbuf;
     DIR* dfd;
     int last_slash = 0;
     int i = 0;
@@ -62,13 +63,13 @@ ssize_t send_directory_view(int clientfd, char* dir)
     while (dir[i]) {
         if (dir[i] == '/' && dir[i + 1] != '\0')
             last_slash = i;
-        parent[i] = dir[i];
+        buf[i] = dir[i];
         i++;
     }
     if (last_slash)
-        parent[last_slash + 1] = '\0';
+        buf[last_slash + 1] = '\0';
     else
-        parent[i] = '\0';
+        buf[i] = '\0';
 
     printf("%s [200]\n", dir);
     start_http_response(clientfd, 200);
@@ -78,7 +79,7 @@ ssize_t send_directory_view(int clientfd, char* dir)
     WriteStr(clientfd, dir + 1);
     WriteStr(clientfd, "</h1><br>");
     WriteStr(clientfd, "<table><tr><td><a href='");
-    WriteStr(clientfd, ((char*)parent) + 1);
+    WriteStr(clientfd, ((char*)buf) + 1);
     WriteStr(clientfd, "'>parent</a></td></tr>");
 
     while ((dp = readdir(dfd)) != NULL) {
@@ -90,7 +91,15 @@ ssize_t send_directory_view(int clientfd, char* dir)
         WriteStr(clientfd, dp->d_name);
         WriteStr(clientfd, "'>");
         WriteStr(clientfd, dp->d_name);
-        WriteStr(clientfd, "</a></td></tr>");
+        WriteStr(clientfd, "</a></td><td>");
+        sprintf(buf, "%s/%s", dir, dp->d_name);
+        stat(buf, &stbuf);
+        if (S_ISREG(stbuf.st_mode)) {
+            sprintf(buf, "%d", stbuf.st_size);
+            WriteStr(clientfd, buf);
+        }
+        WriteStr(clientfd, "</td></tr>");
+
     }
     WriteStr(clientfd, "</table></body></html>");
     closedir(dfd);
